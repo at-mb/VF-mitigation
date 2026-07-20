@@ -1,10 +1,4 @@
-================================================================================
-  VIDEO FINGERPRINTING SIDE-CHANNEL ATTACK AND MITIGATIONS IN ADAPTIVE STREAMING
-================================================================================
-
-Written in the context of: dash.js v5.2.1 mitigation port (Randomised Heartbeat
-+ Continuous Byte-Range), originally prototyped in Shaka Player.
-
+CLOSING THE VIDEO FINGERPRINTING LOOPHOLE ONCE AND FOR ALL!
 
 --------------------------------------------------------------------------------
   1. BACKGROUND: HOW ADAPTIVE BITRATE (ABR) STREAMING WORKS
