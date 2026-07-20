@@ -1,7 +1,7 @@
-CLOSING THE VIDEO FINGERPRINTING LOOPHOLE ONCE AND FOR ALL!
+# CLOSING THE VIDEO FINGERPRINTING LOOPHOLE ONCE AND FOR ALL!
 
 --------------------------------------------------------------------------------
-  1. BACKGROUND: HOW ADAPTIVE BITRATE (ABR) STREAMING WORKS
+ ## 1. BACKGROUND: HOW ADAPTIVE BITRATE (ABR) STREAMING WORKS
 --------------------------------------------------------------------------------
 
 Modern video platforms (YouTube, Netflix, DASH-based players) use MPEG-DASH or
@@ -31,10 +31,10 @@ possible.
 
 
 --------------------------------------------------------------------------------
-  2. THE FINGERPRINTING ATTACK
+##  2. THE FINGERPRINTING ATTACK
 --------------------------------------------------------------------------------
 
-2.1  THREAT MODEL
+### 2.1  THREAT MODEL
 -----------------
 An adversary is a PASSIVE OBSERVER on the network path: a Wi-Fi access point
 operator, a network ISP, a malicious router, or even a side-channel observer
@@ -49,7 +49,7 @@ The adversary CANNOT see:
   - Content of the payload (TLS protects it)
   - The URL if using HTTPS (SNI reveals the domain, not the video ID)
 
-2.2  HOW THE ATTACK WORKS
+### 2.2  HOW THE ATTACK WORKS
 --------------------------
   Step 1 — BUILD A FINGERPRINT DATABASE
   The adversary downloads every video they want to identify and records the
@@ -68,7 +68,7 @@ The adversary CANNOT see:
   sizes are unique and deterministic, classification accuracy in academic
   studies exceeds 99% for unprotected streams.
 
-2.3  WHY IT IS HARD TO PREVENT NAIVELY
+### 2.3  WHY IT IS HARD TO PREVENT NAIVELY
 ---------------------------------------
 Simply using HTTPS is not enough — the attack exploits metadata (sizes and
 timing), not content. Constant-rate streaming (padding every response to the
@@ -77,10 +77,10 @@ challenge is to obfuscate the observable pattern while adding minimal overhead.
 
 
 --------------------------------------------------------------------------------
-  3. MITIGATION STRATEGY 1 — RANDOMISED HEARTBEAT  (n ∈ {0, 1, 2})
+##  3. MITIGATION STRATEGY 1 — RANDOMISED HEARTBEAT  (n ∈ {0, 1, 2})
 --------------------------------------------------------------------------------
 
-3.1  CORE IDEA
+### 3.1  CORE IDEA
 --------------
 Replace the ABR algorithm's natural download schedule with a FIXED-INTERVAL
 BURST CLOCK (the "heartbeat"). At each tick of the clock, the player downloads
@@ -88,7 +88,7 @@ n segments, where n is drawn uniformly at random from {0, 1, 2}. The heartbeat
 period equals one segment duration (e.g., 4 seconds), so in expectation the
 player downloads 1 segment per period — matching the real-time playback rate.
 
-3.2  LOGIC
+### 3.2  LOGIC
 ----------
   Every heartbeat_interval seconds:
     n ← random choice from {0, 1, 2}  
@@ -105,7 +105,7 @@ player downloads 1 segment per period — matching the real-time playback rate.
   carries no information. The only observable signal is the SIZE of each burst:
   0, 1, or 2 consecutive segments concatenated.
 
-3.3  BANDWIDTH OVERHEAD
+### 3.3  BANDWIDTH OVERHEAD
 ------------------------
   Expected segments per burst:
     E[n] = 1
@@ -126,7 +126,7 @@ player downloads 1 segment per period — matching the real-time playback rate.
   Peak scenario: two consecutive n=2 bursts = 4 segments in 2 heartbeat
   intervals. This builds buffer headroom consumed by subsequent n=0 intervals.
 
-3.4  NUMBER OF POSSIBLE FINGERPRINTS
+### 3.4  NUMBER OF POSSIBLE FINGERPRINTS
 --------------------------------------
   For a video with S total segments, the observable is an ordered sequence of
   burst sizes (n_1, n_2, ..., n_B) such that sum(n_i) = S and each n_i ∈ {0,1,2}.
@@ -155,10 +155,10 @@ player downloads 1 segment per period — matching the real-time playback rate.
 
 
 --------------------------------------------------------------------------------
-  4. MITIGATION STRATEGY 2 — RANDOMISED HEARTBEAT + DECOY DOWNLOAD
+##  4. MITIGATION STRATEGY 2 — RANDOMISED HEARTBEAT + DECOY DOWNLOAD
 --------------------------------------------------------------------------------
 
-4.1  CORE IDEA
+### 4.1  CORE IDEA
 --------------
 Augment Strategy 1 with an additional "decoy" or "dummy" download per burst.
 The decoy fetches bytes that are NOT appended to the media buffer — they are
@@ -166,7 +166,7 @@ discarded after receipt. From the adversary's perspective, both the real segment
 and the decoy are indistinguishable, because both appear as ordinary HTTPS
 response bodies of some byte size.
 
-4.2  LOGIC
+### 4.2  LOGIC
 ----------
   Every heartbeat_interval seconds:
     n     ← random from {0, 1, 2}       (real segments to play)
@@ -181,7 +181,7 @@ response bodies of some byte size.
   In all cases the decoy bytes transit the network and are visible to the
   observer, but are never decoded or played.
 
-4.3  BANDWIDTH OVERHEAD
+### 4.3  BANDWIDTH OVERHEAD
 ------------------------
   With d uniform on {0.3, 0.7}:
     E[decoy] = P(decoy occurs) × E[decoy size | occurs]
@@ -197,7 +197,7 @@ response bodies of some byte size.
   The overhead is always "pure waste" — decoy bytes are never reused. This
   makes Strategy 2 the most expensive mitigation in terms of bandwidth.
 
-4.4  NUMBER OF POSSIBLE FINGERPRINTS 
+### 4.4  NUMBER OF POSSIBLE FINGERPRINTS 
 --------------------------------------
   For each burst, the observable is the sum (n_i + d_i) bytes. The adversary
   sees a total burst size but cannot easily separate real from decoy.
@@ -253,10 +253,10 @@ Since we download 1 segment in average, than B ≈ S. And since the attack requi
 
 
 --------------------------------------------------------------------------------
-  5. MITIGATION STRATEGY 3 — CONTINUOUS BYTE-RANGE (HTTP Range Requests)
+##  5. MITIGATION STRATEGY 3 — CONTINUOUS BYTE-RANGE (HTTP Range Requests)
 --------------------------------------------------------------------------------
 
-5.1  CORE IDEA
+### 5.1  CORE IDEA
 --------------
 Instead of downloading whole segments, the player issues HTTP Range requests
 (byte offsets within a segment URL). This allows downloading a CONTINUOUS,
@@ -268,7 +268,7 @@ The key insight is that by splitting along ARBITRARY BYTE OFFSETS rather than
 segment boundaries, the observable sequence becomes a continuous-valued signal
 with no discrete structure for a classifier to anchor on.
 
-5.2  LOGIC
+### 5.2  LOGIC
 ----------
   Every heartbeat_interval:
     f ← Uniform[0, 2]       (continuous float, e.g. 1.3 means "1 full + 30%")
@@ -279,9 +279,7 @@ with no discrete structure for a classifier to anchor on.
     1. If a CARRY-OVER exists (partial segment from previous burst), COMPLETE it
        first by fetching its remaining bytes (byte offset B_prev to end).
        This takes priority over everything — it ensures no MSE buffer gap.
-
     2. Download n complete segments using Range: bytes=0- (full file).
-
     3. If r > 0, fetch the FIRST (r × segment_size_bytes) bytes of the next
        segment using Range: bytes=0-(r × size − 1).
        Store these bytes as carry-over. Do NOT inject into the media buffer yet.
@@ -299,7 +297,7 @@ with no discrete structure for a classifier to anchor on.
   The fractional split r is IDENTICAL for both streams, achieving synchronised
   partial injection even though audio and video segments differ in byte size.
 
-5.3  BANDWIDTH OVERHEAD
+### 5.3  BANDWIDTH OVERHEAD
 ------------------------
   E[f] = E[Uniform[0,2]] = 1
 
@@ -317,7 +315,7 @@ with no discrete structure for a classifier to anchor on.
 
   With HTTP/2 multiplexing, the header overhead is compressed further.
 
-5.4  NUMBER OF POSSIBLE FINGERPRINTS
+### 5.4  NUMBER OF POSSIBLE FINGERPRINTS
 --------------------------------------
   Each burst downloads exactly (r × segment_size) bytes at the split point,
   where r is continuous in (0, 1). This is a REAL-VALUED observation.
@@ -351,7 +349,7 @@ And assuming S=8, we have 500,000^8 ≈ 10^45
 
 
 --------------------------------------------------------------------------------
-  6. COMPARATIVE SUMMARY
+ ## 6. COMPARATIVE SUMMARY
 --------------------------------------------------------------------------------
 
   +-----------------------+------------------+-----------------+----------------+
@@ -387,10 +385,10 @@ And assuming S=8, we have 500,000^8 ≈ 10^45
 
 
 --------------------------------------------------------------------------------
-  7. IMPLEMENTATION DETAILS — DASH.JS PORT
+ ## 7. IMPLEMENTATION DETAILS — DASH.JS PORT
 --------------------------------------------------------------------------------
 
-7.1  ARCHITECTURE
+### 7.1  ARCHITECTURE
 -----------------
 The dash.js port implements Strategies 1 and 3 in a buffer-zone-aware manner:
 
@@ -401,7 +399,7 @@ The dash.js port implements Strategies 1 and 3 in a buffer-zone-aware manner:
   Buffer 24–28s (DRAIN zone):      No download 
   Buffer ≥ 28s  (HARD CAP):        No download 
 
-7.2  KEY FILES
+### 7.2  KEY FILES
 --------------
   src/streaming/controllers/ScheduleController.js
     - Drives the heartbeat timer and zone detection
@@ -420,7 +418,7 @@ The dash.js port implements Strategies 1 and 3 in a buffer-zone-aware manner:
     - hasMitigationCarryOver(): boolean, used by carry-over priority guard
     - abortMitigationFetch(): cancels in-flight Range fetch on seek/reset
 
-7.3  CARRY-OVER MECHANISM
+### 7.3  CARRY-OVER MECHANISM
 --------------------------
 When r > 0, the partial bytes (first r × size bytes of the next segment) are
 stored in mitigation_carryRequest_ / mitigation_carryBytes_ / mitigation_carryByteOffset_.
@@ -433,7 +431,7 @@ below the 8s threshold WHILE a carry-over is pending, the system completes the
 carry-over (f=0, heartbeat=0) before entering the normal underflow strategy.
 This prevents MSE gaps that would cause video skips.
 
-7.4  GENERATION COUNTER
+### 7.4  GENERATION COUNTER
 ------------------------
 mitigation_generation_ is incremented on every clearScheduleTimer() call
 (seek, quality switch, destroy). Each runMitigationBurstLoop() captures the
@@ -443,7 +441,7 @@ during an in-flight Range request), the stale loop exits silently without
 rescheduling — preventing ghost downloads from interfering with the new playback
 position.
 
-7.5  SHARED DICE (AUDIO/VIDEO SYNCHRONISATION)
+### 7.5  SHARED DICE (AUDIO/VIDEO SYNCHRONISATION)
 -----------------------------------------------
 Audio and video are managed by separate ScheduleController instances. To ensure
 both streams split at the SAME fractional offset r, a module-level Map
@@ -462,14 +460,14 @@ logical burst boundary — synchronised playback is preserved.
 
 
 --------------------------------------------------------------------------------
-  8. IMPLEMENTATION DETAILS — SHAKA PLAYER PORT
+ ## 8. IMPLEMENTATION DETAILS — SHAKA PLAYER PORT
 --------------------------------------------------------------------------------
 
 The same Strategies 1 and 3 were also implemented in Shaka Player, which served
 as the first prototype before the dash.js port was developed. Strategy 2 (decoy
 downloads) was designed and analysed but not implemented in either player.
 
-8.1  ARCHITECTURE
+### 8.1  ARCHITECTURE
 -----------------
 Unlike the dash.js port — which splits control across ScheduleController.js and
 StreamProcessor.js — the entire Shaka mitigation lives in a single file:
@@ -487,7 +485,7 @@ Buffer zones and thresholds are identical to the dash.js port:
   Buffer 24–28s (DRAIN):      Strategy 3 — f ~ Uniform[0, 1], E[f] = 0.5
   Buffer ≥ 28s  (HARD CAP):   f = 0, no download
 
-8.2  SHARED MAILBOX (AUDIO/VIDEO SYNC)
+### 8.2  SHARED MAILBOX (AUDIO/VIDEO SYNC)
 ---------------------------------------
 The shared dice is implemented directly on the StreamingEngine class:
 
@@ -501,7 +499,7 @@ sizes. The mailbox sits at class level because both audio and video
 MediaState objects share the same StreamingEngine instance — a simpler
 structure than the module-level Map used in the dash.js port.
 
-8.3  UNDERFLOW ZONE — INTEGER BURST (STRATEGY 1)
+### 8.3  UNDERFLOW ZONE — INTEGER BURST (STRATEGY 1)
 -------------------------------------------------
 When buffer < 8s, n ∈ {1, 2} is drawn (50-50) and a dedicated async closure
 `runBurstLoop()` is launched. It calls Shaka's own `fetchAndAppend_()` pipeline
@@ -517,7 +515,7 @@ A `mitigation_inBurstLoop_` flag on each MediaState prevents re-entry while
 an async burst is running — Shaka's equivalent of the generation counter used
 in the dash.js port.
 
-8.4  BUFFERED ZONE — BYTE-RANGE BURST (STRATEGY 3)
+### 8.4  BUFFERED ZONE — BYTE-RANGE BURST (STRATEGY 3)
 ---------------------------------------------------
 When buffer ≥ 8s the byte-range loop runs. The implementation follows the same
 two-part structure as the dash.js port:
@@ -538,7 +536,7 @@ two-part structure as the dash.js port:
   developed later in the dash.js port. The practical effect is the same, but
   the n+r formulation is more explicit about the integer/fractional split.
 
-8.5  mitigation_fetchRange_()
+### 8.5  mitigation_fetchRange_()
 ------------------------------
 Byte-range requests go through a dedicated helper:
 
@@ -555,7 +553,7 @@ If the server returns 200 instead of 206 (no Range support):
     data is used as-is (server-side Range support is a DASH requirement for
     this case).
 
-8.6  KEY DIFFERENCES BETWEEN SHAKA AND DASH.JS PORTS
+### 8.6  KEY DIFFERENCES BETWEEN SHAKA AND DASH.JS PORTS
 ------------------------------------------------------
 
   +---------------------------+---------------------+-------------------------+
@@ -588,7 +586,7 @@ segment boundaries.
 
 
 --------------------------------------------------------------------------------
-  9. REFERENCES AND FURTHER READING
+ ## 9. REFERENCES AND FURTHER READING
 --------------------------------------------------------------------------------
 
   [1] Schuster, R. et al. "Beauty and the Burst: Remote Identification of
